@@ -3,8 +3,7 @@ import * as pg from "pg";
 const { Pool } = pg.default;
 
 const connectionPool = new Pool({
-  connectionString:
-    "postgresql://your-db-username:your-db-password@localhost:5432/your-db-name",
+  connectionString: "postgresql://postgres:Wjc-jp005@localhost:5432/Thread", // ตั้งค่า connection string
 });
 
 export default connectionPool;
