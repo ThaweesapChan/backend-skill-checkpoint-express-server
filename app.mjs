@@ -143,26 +143,81 @@ app.delete("/questions/:questionId", async (req, res) => {
     });
   }
 });
+/*
+// API ข้อที่ 6 Search questions by title or category
+app.get("/questions/search", async (req, res) => {
+  const search = { ...req.body };
 
-// API ข้อที่ 1 Get Post ID
-app.post("/questions", async (req, res) => {
-  const getQuesttions = { ...req.body };
+  if (!search.title && !search.category) {
+    return res.status(400).json({ message: "Invalid search parameters." });
+  }
 
   try {
-    const result = await connectionPool.query(
-      `INSERT INTO questions (title, description, category)
-      VALUES ($1, $2, $3) RETURNING id`,
-      [getQuesttions.title, getQuesttions.description, getQuesttions.category]
-    );
-    const questionId = result.rows[0].id;
+    let query = `SELECT * FROM questions WHERE`;
+    const queryParams = [];
 
-    res.status(201).json({
-      message: `Question id: ${questionId} has been created successfully`,
+    if (search.title) {
+      queryParams.push(`%${search.title}%`);
+      query += ` title ILIKE $${queryParams.length}`;
+    }
+
+    if (search.category) {
+      if (search.title) {
+        query += ` AND`;
+      }
+      queryParams.push(`%${category}%`);
+      query += ` category ILIKE $${queryParams.length}`;
+    }
+
+    const result = await connectionPool.query(query, queryParams);
+
+    return res.status(200).json({ data: result.rows });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Unable to fetch a question.",
+      error: error.message,
+    });
+  }
+});
+ */
+
+// API ข้อที่ 7 Create an answer for a question
+
+app.post("/questions/:questionId/answers", async (req, res) => {
+  const { questionId } = req.params; // รับ questionId จาก URL params
+  const { content } = req.body; // รับเนื้อหาคำตอบจาก body
+
+  // ตรวจสอบว่ามีการส่งข้อมูลคำตอบหรือไม่
+  if (!content) {
+    return res.status(400).json({ message: "Invalid request data." });
+  }
+
+  try {
+    // ตรวจสอบว่า questionId ที่ระบุมีในฐานข้อมูลหรือไม่
+    const questionResult = await connectionPool.query(
+      `SELECT * FROM questions WHERE id = $1`,
+      [questionId]
+    );
+
+    if (questionResult.rows.length === 0) {
+      return res.status(404).json({ message: "Question not found." });
+    }
+
+    // หากคำถามมีอยู่ในฐานข้อมูล ให้สร้างคำตอบใหม่
+    const result = await connectionPool.query(
+      `INSERT INTO answers (question_id, content) 
+       VALUES ($1, $2) RETURNING id`,
+      [questionId, content]
+    );
+
+    return res.status(201).json({
+      message: "Answer created successfully.",
     });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Failed to create question", error: error.message });
+    return res.status(500).json({
+      message: "Unable to create answers.",
+      error: error.message,
+    });
   }
 });
 
@@ -187,8 +242,6 @@ app.post("/comments", async (req, res) => {
       .json({ message: "Failed to create question", error: error.message });
   }
 });
-
-// API ข้อที่ 6 PUT question by ID
 
 // API ข้อที่ 7 Get comment ทั้งหมด
 app.get("/comments", async (req, res) => {
