@@ -179,7 +179,7 @@ app.get("/questions/search", async (req, res) => {
     });
   }
 });
- */
+*/
 
 // API ข้อที่ 7 Create an answer for a question
 
@@ -221,80 +221,147 @@ app.post("/questions/:questionId/answers", async (req, res) => {
   }
 });
 
-// API ข้อที่ 5 Post comments question by ID
-app.post("/comments", async (req, res) => {
-  const getAnswer = { ...req.body };
+// API ข้อที่ 8 Get answers for a question
+app.get("/questions/:questionId/answers", async (req, res) => {
+  const questionId = req.params.questionId;
 
   try {
     const result = await connectionPool.query(
-      `INSERT INTO answers (question_id, content)
-      VALUES ($1, $2) RETURNING id`,
-      [getAnswer.question_id, getAnswer.content]
+      `SELECT * FROM answers WHERE question_id = $1`,
+      [questionId]
     );
-    const answerId = result.rows[0].id;
 
-    res.status(201).json({
-      message: `Question id: ${answerId} has been created successfully`,
-    });
-  } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Failed to create question", error: error.message });
-  }
-});
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message: "No answers found for this question.",
+      });
+    }
 
-// API ข้อที่ 7 Get comment ทั้งหมด
-app.get("/comments", async (req, res) => {
-  try {
-    const result = await connectionPool.query(`SELECT * FROM answers`);
     return res.status(200).json({ data: result.rows });
   } catch (error) {
     return res.status(500).json({
-      message: "Server could not read questions due to database connection",
+      message: "Unable to fetch answers.",
       error: error.message,
     });
   }
 });
 
-// API ข้อที่ 8 Get comments ID
-app.get("/comments/:id", async (req, res) => {
-  const questionId = req.params.id;
+// API ข้อที่ 9 Delete answers for a question
+app.delete("/questions/:questionId/answers", async (req, res) => {
+  const questionId = req.params.questionId;
 
   try {
     const result = await connectionPool.query(
-      `SELECT * FROM answers WHERE id = $1`,
+      `DELETE FROM answers WHERE question_id = $1 RETURNING *`, // ใช้ question_id แทน id ของคำตอบ
       [questionId]
     );
 
-    return res.status(200).json({ data: result.rows[0] });
-  } catch (error) {
-    return res.status(500).json({
-      message: "Server could not read the question due to database connection",
-      error: error.message,
-    });
-  }
-});
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message: "No answers found for this question.",
+      });
+    }
 
-// API ข้อที่ 9 PUT Comments by ID
-app.delete("/comments/:id", async (req, res) => {
-  const questionId = req.params.id;
-
-  try {
-    const result = await connectionPool.query(
-      `DELETE FROM answers WHERE id = $1 RETURNING *`,
-      [questionId]
-    );
     return res.status(200).json({
-      message: `Question id: ${result.rows[0].id} has been deleted successfully`,
+      message: "All answers for the question have been deleted successfully.",
     });
   } catch (error) {
     return res.status(500).json({
-      message:
-        "Server could not delete the question due to database connection",
+      message: "Unable to delete answers.",
       error: error.message,
     });
   }
 });
+
+//API ข้อที่ 10 Vote on a question
+
+app.post("/questions/:questionId/vote", async (req, res) => {
+  const questionId = req.params.questionId;
+  const { vote } = req.body;
+
+  if (vote !== 1 && vote !== -1) {
+    return res.status(400).json({
+      message: "Invalid vote value.",
+    });
+  }
+
+  try {
+    const questionResult = await connectionPool.query(
+      `SELECT * FROM questions WHERE id = $1`,
+      [questionId]
+    );
+
+    if (questionResult.rows.length === 0) {
+      return res.status(404).json({
+        message: "Question not found.",
+      });
+    }
+
+    const updateResult = await connectionPool.query(
+      `UPDATE question_votes
+       SET vote = $1
+       WHERE question_id = $2
+       RETURNING *`,
+      [vote, questionId]
+    );
+
+    return res.status(200).json({
+      message: "Vote on the question has been recorded successfully.",
+      data: updateResult.rows[0],
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Unable to vote question.",
+      error: error.message,
+    });
+  }
+});
+
+
+//API ข้อที่ 11 Vote on an answer
+app.post("/answers/:answerId/vote", async (req, res) => {
+  const questionId = req.params.questionId;
+  const { vote } = req.body;
+
+  if (vote !== 1 && vote !== -1) {
+    return res.status(400).json({
+      message: "Invalid vote value.",
+    });
+  }
+
+  try {
+    const questionResult = await connectionPool.query(
+      `SELECT * FROM questions WHERE id = $1`,
+      [questionId]
+    );
+
+    if (questionResult.rows.length === 0) {
+      return res.status(404).json({
+        message: "Question not found.",
+      });
+    }
+
+    const updateResult = await connectionPool.query(
+      `UPDATE question_votes
+       SET vote = $1
+       WHERE question_id = $2
+       RETURNING *`,
+      [vote, questionId]
+    );
+
+    return res.status(200).json({
+      message: "Vote on the question has been recorded successfully.",
+      data: updateResult.rows[0],
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: "Unable to vote question.",
+      error: error.message,
+    });
+  }
+});
+
+
 
 app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);
