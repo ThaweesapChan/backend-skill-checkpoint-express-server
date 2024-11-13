@@ -317,12 +317,12 @@ app.post("/questions/:questionId/vote", async (req, res) => {
   }
 });
 
-
 //API ข้อที่ 11 Vote on an answer
 app.post("/answers/:answerId/vote", async (req, res) => {
-  const questionId = req.params.questionId;
-  const { vote } = req.body;
+  const answerId = req.params.answerId; // แก้ไขตัวแปรจาก answers เป็น answer
+  const { vote } = req.body; // ใช้ vote แทน answerVote
 
+  // ตรวจสอบค่าของ vote ว่าเป็น 1 หรือ -1
   if (vote !== 1 && vote !== -1) {
     return res.status(400).json({
       message: "Invalid vote value.",
@@ -330,38 +330,38 @@ app.post("/answers/:answerId/vote", async (req, res) => {
   }
 
   try {
-    const questionResult = await connectionPool.query(
-      `SELECT * FROM questions WHERE id = $1`,
-      [questionId]
+    // ตรวจสอบว่า answerId ที่ให้มามีอยู่ในฐานข้อมูลหรือไม่
+    const answerResult = await connectionPool.query(
+      `SELECT * FROM answers WHERE id = $1`,
+      [answerId]
     );
 
-    if (questionResult.rows.length === 0) {
+    if (answerResult.rows.length === 0) {
       return res.status(404).json({
-        message: "Question not found.",
+        message: "Answer not found.", // เปลี่ยนจาก "Question not found."
       });
     }
 
+    // เพิ่มคะแนนโหวตให้กับคำตอบที่ตรงกับ answerId
     const updateResult = await connectionPool.query(
-      `UPDATE question_votes
+      `UPDATE answer_votes
        SET vote = $1
-       WHERE question_id = $2
-       RETURNING *`,
-      [vote, questionId]
+       WHERE answer_id = $2
+       RETURNING *`, // แก้ไขคำสั่ง SQL ให้ตรงกับ answer_votes
+      [vote, answerId]
     );
 
     return res.status(200).json({
-      message: "Vote on the question has been recorded successfully.",
+      message: "Vote on the answer has been recorded successfully.",
       data: updateResult.rows[0],
     });
   } catch (error) {
     return res.status(500).json({
-      message: "Unable to vote question.",
+      message: "Unable to vote answer.",
       error: error.message,
     });
   }
 });
-
-
 
 app.listen(port, () => {
   console.log(`Server is running at http://localhost:${port}`);
